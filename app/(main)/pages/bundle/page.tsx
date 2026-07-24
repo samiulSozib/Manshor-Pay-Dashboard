@@ -59,6 +59,8 @@ const BundlePage = () => {
         api_binding: null
     };
 
+
+
     const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
     const [selectedCapability, setSelectedCapability] = useState('');
     const [selectedProviderBundle, setSelectedProviderBundle] = useState<RawInternet | null>(null);
@@ -112,6 +114,24 @@ const BundlePage = () => {
         dispatch(_fetchCompanies());
         dispatch(_fetchServiceCategories());
     }, [dispatch, searchTag]);
+
+    // useEffect(() => {
+    //     if (serviceDialog) {
+    //         // Fetch all required dropdown data
+    //         if (currencies.length === 0) {
+    //             dispatch(_fetchCurrencies());
+    //         }
+    //         if (services.length === 0) {
+    //             dispatch(_fetchServiceList());
+    //         }
+    //         if (companies.length === 0) {
+    //             dispatch(_fetchCompanies());
+    //         }
+    //         if (serviceCategories.length === 0) {
+    //             dispatch(_fetchServiceCategories());
+    //         }
+    //     }
+    // }, [serviceDialog, dispatch]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -280,14 +300,32 @@ const BundlePage = () => {
                     product_name: selectedProviderBundle.name,
                     price: selectedProviderBundle.price,
                     stock: selectedProviderBundle.stock,
-                    description: selectedProviderBundle.description
+                    description: selectedProviderBundle.description,
+
+                    // product_type: selectedCategory.purchase_type,
+                    operator: selectedProviderBundle.operator,
+                    internet_type: selectedProviderBundle.internet_type,
+                    sim_type: selectedProviderBundle.sim_type,
+                    // product_id: selectedProviderBundle.id,
+                    table_id: selectedProviderBundle.table_id,
+                    name: selectedProviderBundle.name,
+                    days: selectedProviderBundle.days,
+                    volume: selectedProviderBundle.volume,
+                    unit: selectedProviderBundle.unit,
+                    periodicity: selectedProviderBundle.periodicity
                 }
             };
 
+            console.log(providerData)
+
             if (bundle.id && bundle.id !== 0) {
+                if(selectedProvider){
+                    bundle.api_provider_id=selectedProvider.id
+                }
                 dispatch(_editBundle(bundle.id, bundle, toast, t))
                     .then((newBundle) => {
                         if (newBundle) {
+                            console.log(providerData)
                             dispatch(_setProvider(newBundle.id, providerData, toast, t));
                         }
                     })
@@ -295,9 +333,13 @@ const BundlePage = () => {
                         console.error('Edit bundle failed:', err);
                     });
             } else {
+                if(selectedProvider){
+                    bundle.api_provider_id=selectedProvider.id
+                }
                 dispatch(_addBundle(bundle, toast, t))
                     .then((newBundle) => {
                         if (newBundle) {
+                            console.log(providerData)
                             dispatch(_setProvider(newBundle.id, providerData, toast, t));
                         }
                     })
@@ -311,6 +353,7 @@ const BundlePage = () => {
             const providerData = {
                 api_provider_id: selectedProvider.id,
                 api_provider_bundle_id: selectedProviderBundle.id,
+
                 api_binding: {
                     product_type: selectedProviderBundle.product_type,
                     operator: selectedProviderBundle.operator,
@@ -326,10 +369,16 @@ const BundlePage = () => {
                 }
             };
 
+            console.log(providerData)
+
             if (bundle.id && bundle.id !== 0) {
+                if(selectedProvider){
+                    bundle.api_provider_id=selectedProvider.id
+                }
                 dispatch(_editBundle(bundle.id, bundle, toast, t))
                     .then((newBundle) => {
                         if (newBundle) {
+                            console.log(providerData)
                             dispatch(_setProvider(newBundle.id, providerData, toast, t));
                         }
                     })
@@ -337,9 +386,13 @@ const BundlePage = () => {
                         console.error('Edit bundle failed:', err);
                     });
             } else {
+                if(selectedProvider){
+                    bundle.api_provider_id=selectedProvider.id
+                }
                 dispatch(_addBundle(bundle, toast, t))
                     .then((newBundle) => {
                         if (newBundle) {
+                            console.log(providerData)
                             dispatch(_setProvider(newBundle.id, providerData, toast, t));
                         }
                     })
@@ -348,6 +401,9 @@ const BundlePage = () => {
                     });
             }
         } else {
+            if(selectedProvider){
+                    bundle.api_provider_id=selectedProvider.id
+                }
             // Save without provider binding
             if (bundle.id && bundle.id !== 0) {
                 dispatch(_editBundle(bundle.id, bundle, toast, t));
@@ -902,7 +958,7 @@ const BundlePage = () => {
                         className="p-fluid"
                         footer={companyDialogFooter}
                         onHide={hideDialog}
-                        
+
                         breakpoints={{ '960px': '95vw', '640px': '95vw' }}
                     >
                         <div className="card" style={{ padding: '20px' }}>
@@ -1311,6 +1367,7 @@ const BundlePage = () => {
                                                             <div className="flex flex-col">
                                                                 <span className="font-semibold text-sm">{option.name}</span>
                                                                 <span className="text-xs text-gray-600">Price: {option.price}</span>
+
                                                             </div>
                                                         );
                                                     }}
@@ -1354,10 +1411,45 @@ const BundlePage = () => {
                                             )}
                                             valueTemplate={(option) => {
                                                 if (!option) return t('SEARCH_BUNDLE');
+
                                                 return (
-                                                    <div className="flex flex-col">
-                                                        <span className="font-semibold text-sm">{option.name || option.title}</span>
-                                                        <span className="text-xs text-gray-600">{option.operator}</span>
+                                                    <div className="flex flex-col gap-1 justify-center items-center">
+                                                        <span className="font-semibold text-sm">
+                                                            {option.name || option.title}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.operator}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.currency}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.category}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.validity}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.price}
+                                                        </span>
+
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.voulume}
+                                                        </span>
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.unit}
+                                                        </span>
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.sim_type}
+                                                        </span>
+                                                        <span className="text-xs text-gray-600">
+                                                            {option.internet_type}
+                                                        </span>
                                                     </div>
                                                 );
                                             }}
