@@ -34,6 +34,7 @@ import { generateBalanceExcelFile } from '../../utilities/generateExcel';
 import { Paginator } from 'primereact/paginator';
 import { SplitButton } from 'primereact/splitbutton';
 import { useRouter, useSearchParams } from 'next/navigation';
+import CustomDropdownWithSearch from '@/app/(main)/components/customDropDownWithSearch';
 
 const BalancePage = () => {
     let emptyBalance: Balance = {
@@ -121,7 +122,7 @@ const BalancePage = () => {
                 dispatch(_fetchCurrencies());
             }
             if (resellers.length === 0) {
-                dispatch(_fetchResellers(1, '', '', 10000));
+                dispatch(_fetchResellers(1, '', '', 15));
             }
             if (paymentMethods.length === 0) {
                 dispatch(_fetchPaymentMethods());
@@ -413,17 +414,54 @@ const BalancePage = () => {
             </React.Fragment>
         );
     };
+    const [searchValue, setSearchValue] = useState('');
 
-    const leftToolbarTemplate = () => {
-        return (
-            <React.Fragment>
-                <span className="block mt-2 md:mt-0 p-input-icon-left">
-                    <i className="pi pi-search" />
-                    <InputText type="search" onInput={(e) => setSearchTag(e.currentTarget.value)} placeholder={t('ECOMMERCE.COMMON.SEARCH')} />
-                </span>
-            </React.Fragment>
-        );
+const leftToolbarTemplate = () => {
+
+    const handleSearch = () => {
+        setSearchTag(searchValue);
     };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    return (
+        <React.Fragment>
+            <div className="flex align-items-center gap-2">
+                <span className="p-input-icon-left">
+                    <i className="pi pi-search" />
+                    <InputText
+                        type="search"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.currentTarget.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder={t('ECOMMERCE.COMMON.SEARCH')}
+                    />
+                </span>
+                <Button
+                    severity="info"
+                    onClick={handleSearch}
+                    label={t('ECOMMERCE.COMMON.SEARCH')}
+                    className="p-button-sm"
+                />
+                {searchTag && (
+                    <Button
+                        severity="secondary"
+                        onClick={() => {
+                            setSearchTag('');
+                            setSearchValue('');
+                        }}
+                        className="p-button-sm p-button-outlined"
+                        label={t('CLEAR_FILTERS')}
+                    />
+                )}
+            </div>
+        </React.Fragment>
+    );
+};
 
     const resellerNameBodyTemplate = (rowData: Balance) => {
         return (
@@ -863,7 +901,7 @@ const BalancePage = () => {
                                     <h5 className="mb-4">{t('BALANCE.DETAILS.TITLE')}</h5>
 
                                     {/* Reseller */}
-                                    <div className="field">
+                                    {/* <div className="field">
                                         <label htmlFor="reseller">{t('BALANCE.FORM.INPUT.RESELLER')} *</label>
                                        <Dropdown
                                         id="reseller"
@@ -892,7 +930,7 @@ const BalancePage = () => {
                                             if (!option) return null;
                                             return (
                                                 <div className="flex flex-column p-2 gap-1">
-                                                    <div className="font-semibold">{option.contact_name}</div>
+                                                    <div className="font-semibold">{option.contact_name} || {option.reseller_name}</div>
                                                     <div className="text-sm text-gray-600">
                                                         {option.phone && (
                                                             <span className="ml-2 text-gray-500">{option.phone}</span>
@@ -918,7 +956,66 @@ const BalancePage = () => {
                                                 {t('REQUIRED')}
                                             </small>
                                         )}
-                                    </div>
+                                    </div> */}
+                                    <div className="field">
+                                    <label htmlFor="reseller" style={{ fontWeight: 'bold' }}>
+                                        {t('PAYMENT.FORM.INPUT.RESELLER')}
+                                    </label>
+                                    <CustomDropdownWithSearch
+                                        id="reseller"
+                                        value={balance.reseller}
+                                        options={resellers}
+                                        onChange={(selectedOption) => {
+                                            setBalance((prev) => ({
+                                                ...prev,
+                                                reseller: selectedOption // This will be the full object
+                                            }));
+                                        }}
+                                        optionLabel="reseller_name"
+                                        filterPlaceholder={t('ECOMMERCE.COMMON.SEARCH')}
+                                        placeholder={t('PAYMENT.FORM.INPUT.RESELLER')}
+                                        className="w-full"
+                                        panelClassName="min-w-[20rem]"
+                                        searchButtonText={t('ECOMMERCE.COMMON.SEARCH')}
+                                        error={submitted && !balance.reseller}
+                                        errorMessage={t('THIS_FIELD_IS_REQUIRED')}
+                                        showClear={true}
+                                        emptyMessage={t('NO_RESULTS_FOUND')}
+                                        noResultsMessage={t('TRY_DIFFERENT_SEARCH_TERM')}
+                                        returnFullObject={true} // This ensures we get the full object
+                                        itemTemplate={(option) => {
+                                            if (!option) return null;
+                                            return (
+                                                <div className="flex flex-column p-2 gap-1">
+                                                    <div className="font-semibold">
+                                                        {option.contact_name} || {option.reseller_name}
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        {option.phone && (
+                                                            <span className="ml-2 text-gray-500">{option.phone}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }}
+                                        valueTemplate={(option) => {
+                                            if (!option) return t('PAYMENT.FORM.INPUT.RESELLER');
+                                            return (
+                                                <div className="flex flex-column">
+                                                    <span style={{ fontWeight: 'bold' }}>
+                                                        {option.reseller_name}
+                                                    </span>
+                                                    <small className="text-gray-500 text-xs">
+                                                        {option.contact_name} {option.phone && `${option.phone}`}
+                                                    </small>
+                                                </div>
+                                            );
+                                        }}
+                                        onSearch={(searchTerm) => {
+                                            setResellerSearchTerm(searchTerm);
+                                        }}
+                                    />
+                                </div>
 
 
 
