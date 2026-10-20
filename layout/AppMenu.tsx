@@ -1,17 +1,15 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 import { AppMenuItem } from '@/types';
-import { useContext } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppMenuitem from './AppMenuitem';
-import { LayoutContext } from './context/layoutcontext';
 import { MenuProvider } from './context/menucontext';
 
 const AppMenu = () => {
-    const { layoutConfig } = useContext(LayoutContext);
     const { t } = useTranslation();
 
-    const model: AppMenuItem[] = [
+    const model = useMemo<AppMenuItem[]>(() => [
         {
             label: '',
             icon: 'pi pi-fw pi-th-large',
@@ -269,7 +267,7 @@ const AppMenu = () => {
                 },
             ]
         }
-    ];
+    ], [t]);
 
     return (
         <MenuProvider>
@@ -317,4 +315,4 @@ const AppMenu = () => {
     );
 };
 
-export default AppMenu;
+export default memo(AppMenu);

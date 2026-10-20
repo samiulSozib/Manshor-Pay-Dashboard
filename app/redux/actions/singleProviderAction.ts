@@ -1,4 +1,4 @@
-// singleProviderActions.ts
+// singleProviderAction.ts
 import axios from "axios";
 import { Dispatch } from "redux";
 import {
@@ -77,6 +77,48 @@ export const _fetchSingleProvider = (
                           [];
         }
 
+        // INAX ONLY: its API returns data.categories[].bundles.
+        // Normalize the catalog for the existing INAX frontend dropdowns.
+        // All other provider action payloads and requests remain unchanged.
+        if (code === 'inax') {
+            const categories = response.data.data?.categories;
+            const inaxItems = Array.isArray(categories)
+                ? categories.flatMap((category: any) =>
+                    (Array.isArray(category?.bundles) ? category.bundles : []).map((item: any) => ({
+                        ...item,
+                        category: item.category || category.code || category.name || 'Other',
+                        name: item.name || item.title,
+                        table_id: item.table_id || item.provider_table_id,
+                        provider_table_id: item.provider_table_id || item.table_id,
+                        operator: item.operator || item.meta?.operator || '',
+                        sim_type: item.sim_type || item.meta?.sim_type || '',
+                        internet_type: item.internet_type || item.meta?.internet_type || '',
+                        // Preserve original supplier prices; never calculate/overwrite.
+                        price: item.price,
+                        tprice: item.tprice,
+                        currency: item.currency || 'IRT'
+                    })))
+                : [];
+
+            // Keep the existing Redux state shape; only INAX-specific data changes.
+            dispatch({
+                type: FETCH_SINGLE_PROVIDER_SUCCESS,
+                payload: {
+                    products: [],
+                    provider: response.data.data?.provider || response.data.provider,
+                    internets: [],
+                    rawInternets: inaxItems,
+                    rawBundles: response.data.data?.bundles || [],
+                    pagination: response.data.payload?.pagination || response.data.data?.pagination || null,
+                    isPaystoreProducts: false,
+                },
+            });
+
+            // INAX frontend can consume the complete original response;
+            // Redux users receive the normalized rawInternets array above.
+            return response.data;
+        }
+
         dispatch({
             type: FETCH_SINGLE_PROVIDER_SUCCESS,
             payload: {
@@ -107,7 +149,7 @@ export const clearSingleProvider = () => ({
     type: CLEAR_SINGLE_PROVIDER
 });
 
-// 🔥 FIXED: Fetch PayStore operators
+// Fetch PayStore operators
 export const _fetchPaystoreOperators = (
     providerId: number
 ) => async (dispatch: Dispatch) => {
@@ -185,7 +227,7 @@ export const _fetchPaystoreProductsByFirm = (
 
         console.log("🔥 PayStore Products by Firm Response:", response.data);
 
-        let productsData = response.data.data?.products ||
+        const productsData = response.data.data?.products ||
                           response.data.data?.internet ||
                           response.data.data ||
                           [];
@@ -215,3 +257,140 @@ export const _fetchPaystoreProductsByFirm = (
 export const clearPaystoreOperators = () => ({
     type: CLEAR_PAYSTORE_OPERATORS,
 });
+
+// ============================================================
+// MANSHOR PAY - SERVICES
+// ============================================================
+export const _fetchManshorPayServices = (
+    providerId: number,
+    page: number = 1,
+    search: string = ''
+) => async (_dispatch: Dispatch) => {
+    try {
+        const token = getAuthToken();
+        const queryParams = new URLSearchParams();
+
+        queryParams.append('page', String(page));
+        queryParams.append('per_page', '100');
+
+        if (search) {
+            queryParams.append('search', search);
+        }
+
+        const url =
+            `${process.env.NEXT_PUBLIC_BASE_URL}` +
+            `/api-providers/${providerId}/manshorpay/services` +
+            `?${queryParams.toString()}`;
+
+        console.log('🌐 Fetching ManshorPay services:', url);
+
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json'
+            }
+        });
+
+        console.log('🔥 ManshorPay Services Response:', response.data);
+
+        const rawServices = response.data.data?.services || [];
+
+        const serviceList = Array.isArray(rawServices)
+            ? rawServices
+            : rawServices && typeof rawServices === 'object'
+                ? Object.values(rawServices)
+                : [];
+
+        const normalizedServices = serviceList.map((service: any) => {
+            const operatorName =
+                service?.operator && typeof service.operator === 'object'
+                    ? String(service.operator?.name || '')
+                    : String(service?.operator || '');
+
+            const categoryName =
+                service?.category && typeof service.category === 'object'
+                    ? String(service.category?.name || '')
+                    : String(service?.category || '');
+
+            const explicitName =
+                typeof service?.name === 'string'
+                    ? service.name
+                    : '';
+
+            const displayName =
+                [operatorName, categoryName].filter(Boolean).join(' - ') ||
+                explicitName ||
+                `Service #${service?.id ?? ''}`;
+
+            return {
+                ...service,
+                _operator_name: operatorName,
+                _category_name: categoryName,
+                _display_name: displayName
+            };
+        });
+
+        return {
+            services: normalizedServices,
+            pagination:
+                response.data.payload?.pagination ||
+                response.data.data?.pagination ||
+                null,
+            raw: response.data
+        };
+    } catch (error: any) {
+        console.error('❌ ManshorPay services error:', error);
+        throw error;
+    }
+};
+
+// ============================================================
+// MANSHOR PAY - PRODUCTS BY SERVICE
+// ============================================================
+export const _fetchManshorPayProducts = (
+    providerId: number,
+    serviceId: number | string,
+    page: number = 1,
+    search: string = ''
+) => async (_dispatch: Dispatch) => {
+    try {
+        const token = getAuthToken();
+        const queryParams = new URLSearchParams();
+
+        queryParams.append('service_id', String(serviceId));
+        queryParams.append('page', String(page));
+        queryParams.append('per_page', '100');
+
+        if (search) {
+            queryParams.append('search', search);
+        }
+
+        const url =
+            `${process.env.NEXT_PUBLIC_BASE_URL}` +
+            `/api-providers/${providerId}/manshorpay/products` +
+            `?${queryParams.toString()}`;
+
+        console.log('🌐 Fetching ManshorPay products:', url);
+
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json'
+            }
+        });
+
+        console.log('🔥 ManshorPay Products Response:', response.data);
+
+        return {
+            products: response.data.data?.products || [],
+            pagination:
+                response.data.payload?.pagination ||
+                response.data.data?.pagination ||
+                null,
+            raw: response.data
+        };
+    } catch (error: any) {
+        console.error('❌ ManshorPay products error:', error);
+        throw error;
+    }
+};
