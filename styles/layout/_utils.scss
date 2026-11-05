@@ -57,3 +57,7 @@
     margin-right: 0;
     margin-left: 0.5rem;
 }
+
+.menu-navigating * {
+     pointer-events: none !important;
+}

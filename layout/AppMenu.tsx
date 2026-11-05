@@ -1,15 +1,17 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 import { AppMenuItem } from '@/types';
-import { memo, useMemo } from 'react';
+import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppMenuitem from './AppMenuitem';
+import { LayoutContext } from './context/layoutcontext';
 import { MenuProvider } from './context/menucontext';
 
 const AppMenu = () => {
+    const { layoutConfig } = useContext(LayoutContext);
     const { t } = useTranslation();
 
-    const model = useMemo<AppMenuItem[]>(() => [
+    const model: AppMenuItem[] = [
         {
             label: '',
             icon: 'pi pi-fw pi-th-large',
@@ -261,13 +263,20 @@ const AppMenu = () => {
                     to: '/pages/api-keys'
                 },
                 {
+                    label: t('MENU.BACKUP_MANAGEMENT', {
+                        defaultValue: 'Backup Management'
+                    }),
+                    icon: 'pi pi-fw pi-database',
+                    to: '/pages/backup-management'
+                },
+                {
                     label: t('TRANSLATION_WORKSPACE'),
                     icon: 'pi pi-fw pi-question-circle',
                     to: '/pages/translation-workspace?type=bundle'
                 },
             ]
         }
-    ], [t]);
+    ];
 
     return (
         <MenuProvider>
@@ -315,4 +324,4 @@ const AppMenu = () => {
     );
 };
 
-export default memo(AppMenu);
+export default AppMenu;

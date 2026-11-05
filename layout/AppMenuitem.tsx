@@ -2,17 +2,19 @@
 import { AppMenuItemProps } from '@/types';
 import { useTranslation } from 'next-i18next';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Ripple } from 'primereact/ripple';
 import { classNames } from 'primereact/utils';
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { MenuContext } from './context/menucontext';
 
 const AppMenuitem = (props: AppMenuItemProps) => {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const { activeMenu, setActiveMenu } = useContext(MenuContext);
+    const router = useRouter();
+    const { activeMenu, setActiveMenu, isNavigating, setIsNavigating } = useContext(MenuContext);
+    const [localNavigating, setLocalNavigating] = useState(false);
     const item = props.item;
     const key = props.parentKey ? props.parentKey + '-' + props.index : String(props.index);
     const isActiveRoute = item!.to && pathname === item!.to;
@@ -33,16 +35,65 @@ const AppMenuitem = (props: AppMenuItemProps) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname, searchParams]);
 
-    const handleNavigation = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
-        if (item!.disabled) {
+    useEffect(() => {
+        if (!isNavigating) {
+            setLocalNavigating(false);
+        }
+    }, [isNavigating]);
+
+    const handleNavigation = async (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>, url?: string) => {
+        if (isNavigating || item!.disabled) {
             event.preventDefault();
             return;
         }
-        // Preserve native Link behavior, including same-page and modified clicks.
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-        item!.command?.({ originalEvent: event, item });
-        if (event.defaultPrevented) return;
-        setActiveMenu(item!.items && active ? (props.parentKey || '') : key);
+
+        if (item!.command) {
+            item!.command({ originalEvent: event, item: item });
+        }
+
+        if (item!.url && !item!.to) {
+            return;
+        }
+
+        if (item!.to && !item!.items) {
+            event.preventDefault();
+
+            setIsNavigating(true);
+            setLocalNavigating(true);
+
+            setActiveMenu(key);
+
+            // Add a body class to immediately block interactions globally
+            try {
+                document.body.classList.add('menu-navigating');
+            } catch (err) {
+                // ignore (server fallback)
+            }
+
+            try {
+                if (item!.replaceUrl) {
+                    router.replace(item!.to);
+                } else {
+                    router.push(item!.to);
+                }
+
+                // Navigation state will be cleared by MenuProvider when pathname changes.
+
+            } catch (error) {
+                console.error('Navigation error:', error);
+                setIsNavigating(false);
+                setLocalNavigating(false);
+                try {
+                    document.body.classList.remove('menu-navigating');
+                } catch (err) { }
+            }
+        } else {
+            if (item!.items) {
+                setActiveMenu(active ? (props.parentKey as string) : key);
+            } else {
+                setActiveMenu(key);
+            }
+        }
     };
 
     const subMenu = item!.items && item!.visible !== false && (
@@ -63,10 +114,11 @@ const AppMenuitem = (props: AppMenuItemProps) => {
         'p-ripple',
         {
             'active-route': isActiveRoute,
-            'layout-menuitem-disabled': item!.disabled
+            'layout-menuitem-disabled': localNavigating && !item!.items
         }
     );
 
+    const showSpinner = localNavigating && !item!.items;
 
     // Determine font size based on whether it's a main item or sub-item
     const getFontSize = () => {
@@ -79,7 +131,8 @@ const AppMenuitem = (props: AppMenuItemProps) => {
     return (
         <li className={classNames({
             'layout-root-menuitem': props.root,
-            'active-menuitem': active
+            'active-menuitem': active,
+            'layout-menuitem-navigating': localNavigating
         })} style={{
             margin: '0.125rem 0' // Reduced margin
         }}>
@@ -95,11 +148,12 @@ const AppMenuitem = (props: AppMenuItemProps) => {
             {(!item!.to || item!.items) && item!.visible !== false ? (
                 <a
                     href={item!.url}
-                    onClick={(e) => handleNavigation(e)}
+                    onClick={(e) => handleNavigation(e, item!.url)}
                     className={menuItemClass}
                     target={item!.target}
-                    tabIndex={item!.disabled ? -1 : 0}
+                    tabIndex={isNavigating && !localNavigating ? -1 : 0}
                     style={{
+                        pointerEvents: isNavigating && !localNavigating ? 'none' : 'auto',
                         fontSize: getFontSize(),
                         padding: '0.5rem 0.75rem', // Reduced padding
                         minHeight: '2rem' // Reduced height
@@ -124,6 +178,15 @@ const AppMenuitem = (props: AppMenuItemProps) => {
                             fontSize: '0.8rem' // Smaller toggle icon
                         }}></i>
                     )}
+                    {showSpinner && (
+                        <i
+                            className="pi pi-spin pi-spinner layout-menuitem-spinner"
+                            style={{
+                                marginLeft: '6px',
+                                fontSize: '0.75rem' // Smaller spinner
+                            }}
+                        />
+                    )}
                     <Ripple />
                 </a>
             ) : null}
@@ -135,8 +198,9 @@ const AppMenuitem = (props: AppMenuItemProps) => {
                     target={item!.target}
                     onClick={(e) => handleNavigation(e)}
                     className={menuItemClass}
-                    tabIndex={item!.disabled ? -1 : 0}
+                    tabIndex={isNavigating && !localNavigating ? -1 : 0}
                     style={{
+                        pointerEvents: isNavigating && !localNavigating ? 'none' : 'auto',
                         fontSize: getFontSize(),
                         padding: '0.5rem 0.75rem', // Reduced padding
                         minHeight: '2rem' // Reduced height
@@ -161,6 +225,15 @@ const AppMenuitem = (props: AppMenuItemProps) => {
                         <i className="pi pi-fw pi-angle-down layout-submenu-toggler" style={{
                             fontSize: '0.8rem' // Smaller toggle icon
                         }}></i>
+                    )}
+                    {showSpinner && (
+                        <i
+                            className="pi pi-spin pi-spinner layout-menuitem-spinner"
+                            style={{
+                                marginLeft: '6px',
+                                fontSize: '0.75rem' // Smaller spinner
+                            }}
+                        />
                     )}
                     <Ripple />
                 </Link>
